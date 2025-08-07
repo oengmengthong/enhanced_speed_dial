@@ -2,6 +2,12 @@
 
 A highly customizable Flutter package that provides an elegant speed dial floating action button with advanced blur background effects, flexible positioning, multiple direction layouts, and comprehensive styling options.
 
+## 📸 Screenshots
+
+| Screenshot 1 | Screenshot 2 | Screenshot 3 |
+|--------------|--------------|--------------|
+| ![Enhanced Speed Dial Screenshot 1](screenshots/image1.png) | ![Enhanced Speed Dial Screenshot 2](screenshots/image2.png) | ![Enhanced Speed Dial Screenshot 3](screenshots/image3.png) |
+
 ## ✨ Features
 
 - 🎨 **Fully Customizable**: Complete control over colors, icons, animations, and styling
@@ -40,7 +46,44 @@ flutter pub get
 
 ## 🚀 Quick Start
 
-### Basic Example
+### Simple Example (Recommended)
+
+```dart
+import 'package:flutter/material.dart';
+import 'package:enhanced_speed_dial/enhanced_speed_dial.dart';
+
+class MyHomePage extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(title: Text('Enhanced Speed Dial Example')),
+      body: Center(child: Text('Hello World!')),
+      floatingActionButton: EnhancedSpeedDial.simple(
+        mainIcon: Icons.add,
+        options: [
+          SpeedDialOption.simple(
+            label: 'Create Note',
+            icon: Icons.note_add,
+            onTap: () => print('Create Note tapped'),
+          ),
+          SpeedDialOption.simple(
+            label: 'Add Photo',
+            icon: Icons.photo_camera,
+            onTap: () => print('Add Photo tapped'),
+          ),
+          SpeedDialOption.simple(
+            label: 'Record Voice',
+            icon: Icons.mic,
+            onTap: () => print('Record Voice tapped'),
+          ),
+        ],
+      ),
+    );
+  }
+}
+```
+
+### Basic Example with Full Configuration
 
 ```dart
 import 'package:flutter/material.dart';
@@ -78,13 +121,14 @@ class MyHomePage extends StatelessWidget {
 
 ## 🎛️ Advanced Customization
 
-### Direction and Positioning
+### Corner Positioning
 
 ```dart
 EnhancedSpeedDial(
   mainIcon: Icons.menu,
-  direction: SpeedDialDirection.left, // up, down, left, right
-  position: Offset(20, 20), // Custom positioning (right, bottom)
+  corner: SpeedDialCorner.topLeft, // topLeft, topRight, bottomLeft, bottomRight
+  offsetFromEdge: 20.0, // Distance from screen edges
+  direction: SpeedDialDirection.down, // up, down, left, right
   options: [...],
 )
 ```
@@ -126,13 +170,20 @@ EnhancedSpeedDial(
   elevation: 8.0,
   fabSize: 60.0,
   optionFabSize: 48.0,
-  optionSpacing: 20.0,
+  optionSpacing: 12.0,
+  mainToOptionSpacing: 16.0,
   labelSpacing: 16.0,
   showLabels: true,
   labelStyle: TextStyle(
     fontWeight: FontWeight.bold,
     fontSize: 14,
   ),
+  labelDecoration: BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(8),
+    boxShadow: [BoxShadow(blurRadius: 4, color: Colors.black26)],
+  ),
+  applySafeArea: false, // When using as Scaffold floatingActionButton
   options: [
     SpeedDialOption(
       label: 'Enhanced Action',
@@ -174,11 +225,13 @@ EnhancedSpeedDial(
 | `blurOverlayColor` | `Color` | `Color.fromRGBO(0, 0, 0, 0.3)` | Blur overlay color |
 | `animationDuration` | `Duration` | `Duration(milliseconds: 250)` | Animation duration |
 | `animationCurve` | `Curve` | `Curves.easeInOut` | Animation curve |
+| `corner` | `SpeedDialCorner` | `SpeedDialCorner.bottomRight` | Screen corner position |
+| `offsetFromEdge` | `double` | `16.0` | Distance from screen edges |
 | `direction` | `SpeedDialDirection` | `SpeedDialDirection.up` | Expansion direction |
-| `position` | `Offset` | `Offset(16, 16)` | Position (right, bottom) |
 | `fabSize` | `double?` | `null` | Main FAB size |
 | `optionFabSize` | `double?` | `null` | Option FAB size |
-| `optionSpacing` | `double` | `16.0` | Spacing between options |
+| `optionSpacing` | `double` | `8.0` | Spacing between options |
+| `mainToOptionSpacing` | `double` | `8.0` | Spacing from main FAB to first option |
 | `labelSpacing` | `double` | `16.0` | Spacing between label and button |
 | `rotateMainFab` | `bool` | `true` | Enable main FAB rotation |
 | `rotationAngle` | `double` | `2π` | Rotation angle in radians |
@@ -186,6 +239,17 @@ EnhancedSpeedDial(
 | `closeOnBlurTap` | `bool` | `true` | Close on blur background tap |
 | `showLabels` | `bool` | `true` | Show option labels |
 | `labelStyle` | `TextStyle?` | `null` | Global label text style |
+| `labelDecoration` | `BoxDecoration?` | `null` | Global label card decoration |
+| `labelPadding` | `EdgeInsetsGeometry?` | `null` | Global label padding |
+| `applySafeArea` | `bool` | `true` | Apply SafeArea (disable for Scaffold FAB) |
+| `heroTag` | `String?` | `null` | Main FAB hero tag |
+| `tooltip` | `String?` | `null` | Main FAB tooltip |
+| `initiallyOpen` | `bool` | `false` | Start in open state |
+| `elevation` | `double?` | `null` | Main FAB elevation |
+| `shape` | `ShapeBorder?` | `null` | Main FAB shape |
+| `splashColor` | `Color?` | `null` | Main FAB splash color |
+| `focusColor` | `Color?` | `null` | Main FAB focus color |
+| `hoverColor` | `Color?` | `null` | Main FAB hover color |
 
 ### SpeedDialOption Properties
 
@@ -193,19 +257,30 @@ EnhancedSpeedDial(
 |----------|------|---------|-------------|
 | `label` | `String` | **required** | Option label text |
 | `icon` | `IconData` | **required** | Option icon |
-| `color` | `Color` | **required** | Option background color |
 | `onTap` | `VoidCallback` | **required** | Tap callback |
-| `heroTag` | `String` | **required** | Unique hero tag |
+| `color` | `Color?` | `null` | Option background color (auto-generated if null) |
+| `heroTag` | `String?` | `null` | Unique hero tag (auto-generated if null) |
 | `tooltip` | `String?` | `null` | Tooltip text |
 | `foregroundColor` | `Color?` | `Colors.white` | Foreground color |
 | `size` | `double?` | `null` | Custom size |
 | `elevation` | `double?` | `null` | Custom elevation |
+| `shape` | `ShapeBorder?` | `null` | Custom shape |
 | `enabled` | `bool` | `true` | Enable/disable option |
 | `customLabel` | `Widget?` | `null` | Custom label widget |
 | `showLabel` | `bool?` | `null` | Override global label visibility |
 | `closeOnTap` | `bool?` | `null` | Override close behavior |
+| `labelStyle` | `TextStyle?` | `null` | Custom label text style |
+| `labelDecoration` | `BoxDecoration?` | `null` | Custom label decoration |
+| `labelPadding` | `EdgeInsetsGeometry?` | `null` | Custom label padding |
+| `labelSpacing` | `double?` | `null` | Custom label spacing |
+| `margin` | `EdgeInsetsGeometry?` | `null` | Custom margin |
+| `splashColor` | `Color?` | `null` | Custom splash color |
+| `focusColor` | `Color?` | `null` | Custom focus color |
+| `hoverColor` | `Color?` | `null` | Custom hover color |
 
-### SpeedDialDirection Enum
+### Enums
+
+#### SpeedDialDirection
 
 ```dart
 enum SpeedDialDirection {
@@ -216,36 +291,41 @@ enum SpeedDialDirection {
 }
 ```
 
-## API Reference
+#### SpeedDialCorner
 
-### EnhancedSpeedDial
+```dart
+enum SpeedDialCorner {
+  topLeft,     // Top-left corner of screen
+  topRight,    // Top-right corner of screen
+  bottomLeft,  // Bottom-left corner of screen
+  bottomRight, // Bottom-right corner of screen
+}
+```
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `options` | `List<SpeedDialOption>` | required | List of speed dial options to display |
-| `mainIcon` | `IconData` | required | Main FAB icon when closed |
-| `openIcon` | `IconData?` | `Icons.close` | Main FAB icon when open |
-| `backgroundColor` | `Color?` | `null` | Background color of main FAB |
-| `foregroundColor` | `Color?` | `null` | Foreground color of main FAB |
-| `showBlurBackground` | `bool` | `true` | Whether to show blur background when open |
-| `blurIntensity` | `double` | `10.0` | Blur intensity (sigma value) |
-| `blurOverlayColor` | `Color` | `Color.fromRGBO(0, 0, 0, 0.3)` | Color of the blur overlay |
-| `animationDuration` | `Duration` | `Duration(milliseconds: 250)` | Animation duration for opening/closing |
-| `heroTag` | `String?` | `null` | Hero tag for the main FAB |
-| `tooltip` | `String?` | `null` | Tooltip for the main FAB |
-| `initiallyOpen` | `bool` | `false` | Whether the speed dial starts open |
+### Simple Constructors
 
-### SpeedDialOption
+For quick setup with minimal configuration, use the `.simple()` constructors:
 
-| Property | Type | Default | Description |
-|----------|------|---------|-------------|
-| `label` | `String` | required | Label text displayed next to the button |
-| `icon` | `IconData` | required | Icon displayed on the button |
-| `color` | `Color` | required | Background color of the button |
-| `onTap` | `VoidCallback` | required | Callback when button is pressed |
-| `heroTag` | `String` | required | Unique hero tag for the button |
-| `tooltip` | `String?` | `null` | Tooltip text for accessibility |
-| `foregroundColor` | `Color?` | `Colors.white` | Foreground color of the button |
+#### EnhancedSpeedDial.simple()
+
+```dart
+EnhancedSpeedDial.simple(
+  mainIcon: Icons.add,
+  options: [...], // List of SpeedDialOption
+)
+```
+
+#### SpeedDialOption.simple()
+
+```dart
+SpeedDialOption.simple(
+  label: 'Action',
+  icon: Icons.star,
+  onTap: () => print('Tapped'),
+)
+```
+
+Both constructors automatically handle color generation, hero tags, and other properties with sensible defaults.
 
 ## Example App
 

@@ -297,14 +297,18 @@ class _EnhancedSpeedDialState extends State<EnhancedSpeedDial>
           widget.applySafeArea ? 0.0 : mediaQuery.padding.bottom;
 
       // Calculate positions based on corner, accounting for overlay coordinate system
-      final topPosition = actualFabPosition.dy - overlayTopPadding;
-      final leftPosition = actualFabPosition.dx;
-      final bottomPosition = screenSize.height -
-          overlayBottomPadding -
-          actualFabPosition.dy -
-          actualFabSize.height;
+      // Add bounds checking to prevent negative or off-screen positioning
+      final topPosition = (actualFabPosition.dy - overlayTopPadding)
+          .clamp(0.0, screenSize.height);
+      final leftPosition = actualFabPosition.dx.clamp(0.0, screenSize.width);
+      final bottomPosition = (screenSize.height -
+              overlayBottomPadding -
+              actualFabPosition.dy -
+              actualFabSize.height)
+          .clamp(0.0, screenSize.height);
       final rightPosition =
-          screenSize.width - actualFabPosition.dx - actualFabSize.width;
+          (screenSize.width - actualFabPosition.dx - actualFabSize.width)
+              .clamp(0.0, screenSize.width);
 
       _overlayEntry = OverlayEntry(
         builder: (context) {
@@ -354,35 +358,96 @@ class _EnhancedSpeedDialState extends State<EnhancedSpeedDial>
     SpeedDialDirection effectiveDirection = widget.direction;
 
     // Smart direction adjustment to prevent going off-screen
+    // Get screen dimensions for better decision making
+    final screenSize = MediaQuery.of(context).size;
+    final mediaQuery = MediaQuery.of(context);
+    final fabPosition = _getPositionFromCorner(context);
+    final optionCount = widget.options.length;
+
+    // Calculate total space needed more accurately
+    final optionFabSize = widget.optionFabSize ?? 40.0;
+    final optionSpacing = widget.optionSpacing;
+    final labelHeight = widget.showLabels ? 40.0 : 0.0; // Estimate label height
+    final totalOptionSpace = (optionCount * optionFabSize) +
+        ((optionCount - 1) * optionSpacing) +
+        spacing +
+        labelHeight;
+
+    // Calculate actual available space considering safe areas and screen bounds
+    final safePadding =
+        widget.applySafeArea ? mediaQuery.padding : EdgeInsets.zero;
+    final spaceUp =
+        fabPosition.dy - safePadding.top - 50.0; // Extra margin for safety
+    final spaceDown = screenSize.height -
+        fabPosition.dy -
+        fabSizeValue -
+        safePadding.bottom -
+        50.0;
+    final spaceLeft = fabPosition.dx - safePadding.left - 50.0;
+    final spaceRight = screenSize.width -
+        fabPosition.dx -
+        fabSizeValue -
+        safePadding.right -
+        50.0;
+
+    // Smart auto-adjustment logic with better boundary checking
     if (_shouldUseTop()) {
-      // For top corners, prefer downward expansion to avoid going off-screen
-      if (widget.direction == SpeedDialDirection.up) {
+      // For top corners, prefer downward expansion if there's space
+      if (widget.direction == SpeedDialDirection.up &&
+          spaceDown > totalOptionSpace &&
+          spaceDown > spaceUp) {
         effectiveDirection = SpeedDialDirection.down;
       }
-      // For top-left, avoid going left off-screen
+      // For top-left, avoid going left if insufficient space
       else if (widget.corner == SpeedDialCorner.topLeft &&
-          widget.direction == SpeedDialDirection.left) {
-        effectiveDirection = SpeedDialDirection.right;
+          widget.direction == SpeedDialDirection.left &&
+          spaceLeft < totalOptionSpace) {
+        effectiveDirection =
+            spaceRight > spaceLeft && spaceRight > totalOptionSpace
+                ? SpeedDialDirection.right
+                : (spaceDown > totalOptionSpace
+                    ? SpeedDialDirection.down
+                    : SpeedDialDirection.right);
       }
-      // For top-right, avoid going right off-screen
+      // For top-right, avoid going right if insufficient space
       else if (widget.corner == SpeedDialCorner.topRight &&
-          widget.direction == SpeedDialDirection.right) {
-        effectiveDirection = SpeedDialDirection.left;
+          widget.direction == SpeedDialDirection.right &&
+          spaceRight < totalOptionSpace) {
+        effectiveDirection =
+            spaceLeft > spaceRight && spaceLeft > totalOptionSpace
+                ? SpeedDialDirection.left
+                : (spaceDown > totalOptionSpace
+                    ? SpeedDialDirection.down
+                    : SpeedDialDirection.left);
       }
     } else if (_shouldUseBottom()) {
-      // For bottom corners, prefer upward expansion
-      if (widget.direction == SpeedDialDirection.down) {
+      // For bottom corners, prefer upward expansion if there's space
+      if (widget.direction == SpeedDialDirection.down &&
+          spaceUp > totalOptionSpace &&
+          spaceUp > spaceDown) {
         effectiveDirection = SpeedDialDirection.up;
       }
-      // For bottom-left, avoid going left off-screen
+      // For bottom-left, avoid going left if insufficient space
       else if (widget.corner == SpeedDialCorner.bottomLeft &&
-          widget.direction == SpeedDialDirection.left) {
-        effectiveDirection = SpeedDialDirection.right;
+          widget.direction == SpeedDialDirection.left &&
+          spaceLeft < totalOptionSpace) {
+        effectiveDirection =
+            spaceRight > spaceLeft && spaceRight > totalOptionSpace
+                ? SpeedDialDirection.right
+                : (spaceUp > totalOptionSpace
+                    ? SpeedDialDirection.up
+                    : SpeedDialDirection.right);
       }
-      // For bottom-right, avoid going right off-screen
+      // For bottom-right, avoid going right if insufficient space
       else if (widget.corner == SpeedDialCorner.bottomRight &&
-          widget.direction == SpeedDialDirection.right) {
-        effectiveDirection = SpeedDialDirection.left;
+          widget.direction == SpeedDialDirection.right &&
+          spaceRight < totalOptionSpace) {
+        effectiveDirection =
+            spaceLeft > spaceRight && spaceLeft > totalOptionSpace
+                ? SpeedDialDirection.left
+                : (spaceUp > totalOptionSpace
+                    ? SpeedDialDirection.up
+                    : SpeedDialDirection.left);
       }
     }
 
@@ -390,167 +455,232 @@ class _EnhancedSpeedDialState extends State<EnhancedSpeedDial>
 
     switch (effectiveDirection) {
       case SpeedDialDirection.up:
-        optionsWidget = Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: _getCrossAxisAlignment(),
-          spacing: widget.optionSpacing,
-          children:
-              widget.options.reversed.toList().asMap().entries.map((entry) {
-            final index = widget.options.length - 1 - entry.key;
-            final option = entry.value;
-            return AnimatedBuilder(
-              animation: _scaleAnimation,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _scaleAnimation.value,
-                  child: _buildSpeedDialOption(option, index),
-                );
-              },
-            );
-          }).toList(),
+        optionsWidget = SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: _getCrossAxisAlignment(),
+            spacing: widget.optionSpacing,
+            children:
+                widget.options.reversed.toList().asMap().entries.map((entry) {
+              final index = widget.options.length - 1 - entry.key;
+              final option = entry.value;
+              return AnimatedBuilder(
+                animation: _scaleAnimation,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _scaleAnimation.value,
+                    child: _buildSpeedDialOption(option, index),
+                  );
+                },
+              );
+            }).toList(),
+          ),
         );
         break;
 
       case SpeedDialDirection.down:
-        optionsWidget = Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: _getCrossAxisAlignment(),
-          spacing: widget.optionSpacing,
-          children: widget.options.asMap().entries.map((entry) {
-            final index = entry.key;
-            final option = entry.value;
-            return AnimatedBuilder(
-              animation: _scaleAnimation,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _scaleAnimation.value,
-                  child: _buildSpeedDialOption(option, index),
-                );
-              },
-            );
-          }).toList(),
+        optionsWidget = SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: _getCrossAxisAlignment(),
+            spacing: widget.optionSpacing,
+            children: widget.options.asMap().entries.map((entry) {
+              final index = entry.key;
+              final option = entry.value;
+              return AnimatedBuilder(
+                animation: _scaleAnimation,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _scaleAnimation.value,
+                    child: _buildSpeedDialOption(option, index),
+                  );
+                },
+              );
+            }).toList(),
+          ),
         );
         break;
 
       case SpeedDialDirection.left:
-        optionsWidget = Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          spacing: widget.optionSpacing,
-          children:
-              widget.options.reversed.toList().asMap().entries.map((entry) {
-            final index = widget.options.length - 1 - entry.key;
-            final option = entry.value;
-            return AnimatedBuilder(
-              animation: _scaleAnimation,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _scaleAnimation.value,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment:
-                        _getHorizontalLabelAlignment(effectiveDirection),
-                    spacing: option.labelSpacing ?? widget.labelSpacing,
-                    children: _shouldUseBottom()
-                        ? [
-                            // For bottom corners, put label above FAB to prevent cutoff
-                            if (option.showLabel ?? widget.showLabels) ...[
-                              option.customLabel ?? _buildOptionLabel(option),
+        // Use scrollable SingleChildScrollView for horizontal layouts to prevent overflow
+        optionsWidget = SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            spacing: widget.optionSpacing,
+            children:
+                widget.options.reversed.toList().asMap().entries.map((entry) {
+              final index = widget.options.length - 1 - entry.key;
+              final option = entry.value;
+              return AnimatedBuilder(
+                animation: _scaleAnimation,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _scaleAnimation.value,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment:
+                          _getHorizontalLabelAlignment(effectiveDirection),
+                      spacing: option.labelSpacing ?? widget.labelSpacing,
+                      children: _shouldUseBottom()
+                          ? [
+                              // For bottom corners, put label above FAB to prevent cutoff
+                              if (option.showLabel ?? widget.showLabels) ...[
+                                option.customLabel ?? _buildOptionLabel(option),
+                              ],
+                              _buildOptionFab(option, index),
+                            ]
+                          : [
+                              // For top corners, keep label below FAB
+                              _buildOptionFab(option, index),
+                              if (option.showLabel ?? widget.showLabels) ...[
+                                option.customLabel ?? _buildOptionLabel(option),
+                              ],
                             ],
-                            _buildOptionFab(option, index),
-                          ]
-                        : [
-                            // For top corners, keep label below FAB
-                            _buildOptionFab(option, index),
-                            if (option.showLabel ?? widget.showLabels) ...[
-                              option.customLabel ?? _buildOptionLabel(option),
-                            ],
-                          ],
-                  ),
-                );
-              },
-            );
-          }).toList(),
+                    ),
+                  );
+                },
+              );
+            }).toList(),
+          ),
         );
         break;
 
       case SpeedDialDirection.right:
-        optionsWidget = Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          spacing: widget.optionSpacing,
-          children: widget.options.asMap().entries.map((entry) {
-            final index = entry.key;
-            final option = entry.value;
-            return AnimatedBuilder(
-              animation: _scaleAnimation,
-              builder: (context, child) {
-                return Transform.scale(
-                  scale: _scaleAnimation.value,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment:
-                        _getHorizontalLabelAlignment(effectiveDirection),
-                    spacing: option.labelSpacing ?? widget.labelSpacing,
-                    children: _shouldUseBottom()
-                        ? [
-                            // For bottom corners, put label above FAB to prevent cutoff
-                            if (option.showLabel ?? widget.showLabels) ...[
-                              option.customLabel ?? _buildOptionLabel(option),
+        // Use scrollable SingleChildScrollView for horizontal layouts to prevent overflow
+        optionsWidget = SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            spacing: widget.optionSpacing,
+            children: widget.options.asMap().entries.map((entry) {
+              final index = entry.key;
+              final option = entry.value;
+              return AnimatedBuilder(
+                animation: _scaleAnimation,
+                builder: (context, child) {
+                  return Transform.scale(
+                    scale: _scaleAnimation.value,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment:
+                          _getHorizontalLabelAlignment(effectiveDirection),
+                      spacing: option.labelSpacing ?? widget.labelSpacing,
+                      children: _shouldUseBottom()
+                          ? [
+                              // For bottom corners, put label above FAB to prevent cutoff
+                              if (option.showLabel ?? widget.showLabels) ...[
+                                option.customLabel ?? _buildOptionLabel(option),
+                              ],
+                              _buildOptionFab(option, index),
+                            ]
+                          : [
+                              // For top corners, keep label below FAB
+                              _buildOptionFab(option, index),
+                              if (option.showLabel ?? widget.showLabels) ...[
+                                option.customLabel ?? _buildOptionLabel(option),
+                              ],
                             ],
-                            _buildOptionFab(option, index),
-                          ]
-                        : [
-                            // For top corners, keep label below FAB
-                            _buildOptionFab(option, index),
-                            if (option.showLabel ?? widget.showLabels) ...[
-                              option.customLabel ?? _buildOptionLabel(option),
-                            ],
-                          ],
-                  ),
-                );
-              },
-            );
-          }).toList(),
+                    ),
+                  );
+                },
+              );
+            }).toList(),
+          ),
         );
         break;
     }
 
-    // Position the options widget based on effective direction
+    // Position the options widget based on effective direction with bounds checking
     Widget positionedOptions;
+
+    // Calculate safe positioning bounds to ensure visibility
+    final safeMargin = 16.0; // Minimum margin from screen edges
 
     switch (effectiveDirection) {
       case SpeedDialDirection.up:
+        final calculatedBottom = bottomPosition + fabSizeValue + spacing;
+        final safeBottom =
+            calculatedBottom.clamp(safeMargin, screenSize.height - safeMargin);
+
         positionedOptions = Positioned(
-          bottom: bottomPosition + fabSizeValue + spacing,
-          left: _shouldUseLeft() ? leftPosition : null,
-          right: _shouldUseRight() ? rightPosition : null,
-          child: optionsWidget,
+          bottom: safeBottom,
+          left: _shouldUseLeft()
+              ? leftPosition.clamp(safeMargin, screenSize.width - 100)
+              : null,
+          right: _shouldUseRight()
+              ? rightPosition.clamp(safeMargin, screenSize.width - 100)
+              : null,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: screenSize.width - (2 * safeMargin),
+              maxHeight: screenSize.height - safeBottom - safeMargin,
+            ),
+            child: optionsWidget,
+          ),
         );
         break;
 
       case SpeedDialDirection.down:
+        final calculatedTop = topPosition + fabSizeValue + spacing;
+        final safeTop =
+            calculatedTop.clamp(safeMargin, screenSize.height - safeMargin);
+
         positionedOptions = Positioned(
-          top: topPosition + fabSizeValue + spacing,
-          left: _shouldUseLeft() ? leftPosition : null,
-          right: _shouldUseRight() ? rightPosition : null,
-          child: optionsWidget,
+          top: safeTop,
+          left: _shouldUseLeft()
+              ? leftPosition.clamp(safeMargin, screenSize.width - 100)
+              : null,
+          right: _shouldUseRight()
+              ? rightPosition.clamp(safeMargin, screenSize.width - 100)
+              : null,
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: screenSize.width - (2 * safeMargin),
+              maxHeight: screenSize.height - safeTop - safeMargin,
+            ),
+            child: optionsWidget,
+          ),
         );
         break;
 
       case SpeedDialDirection.left:
+        final calculatedRight = rightPosition + fabSizeValue + spacing;
+        final safeRight =
+            calculatedRight.clamp(safeMargin, screenSize.width - safeMargin);
+
         positionedOptions = Positioned(
-          right: rightPosition + fabSizeValue + spacing,
-          top: topPosition,
-          child: optionsWidget,
+          right: safeRight,
+          top: topPosition.clamp(
+              safeMargin, screenSize.height - 200), // Reserve space for options
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: screenSize.width - safeRight - safeMargin,
+              maxHeight: screenSize.height - (2 * safeMargin),
+            ),
+            child: optionsWidget,
+          ),
         );
         break;
 
       case SpeedDialDirection.right:
+        final calculatedLeft = leftPosition + fabSizeValue + spacing;
+        final safeLeft =
+            calculatedLeft.clamp(safeMargin, screenSize.width - safeMargin);
+
         positionedOptions = Positioned(
-          left: leftPosition + fabSizeValue + spacing,
-          top: topPosition,
-          child: optionsWidget,
+          left: safeLeft,
+          top: topPosition.clamp(
+              safeMargin, screenSize.height - 200), // Reserve space for options
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              maxWidth: screenSize.width - safeLeft - safeMargin,
+              maxHeight: screenSize.height - (2 * safeMargin),
+            ),
+            child: optionsWidget,
+          ),
         );
         break;
     }
@@ -561,11 +691,33 @@ class _EnhancedSpeedDialState extends State<EnhancedSpeedDial>
   // Helper method to build main fab positioned in overlay
   Widget _buildMainFabInOverlay(double topPosition, double leftPosition,
       double bottomPosition, double rightPosition) {
+    final screenSize = MediaQuery.of(context).size;
+    final fabSize = widget.fabSize ?? 56.0;
+    final safeMargin = 16.0;
+
+    // Ensure FAB stays within safe bounds
+    final safeTopPosition = _shouldUseTop()
+        ? topPosition.clamp(
+            safeMargin, screenSize.height - fabSize - safeMargin)
+        : null;
+    final safeLeftPosition = _shouldUseLeft()
+        ? leftPosition.clamp(
+            safeMargin, screenSize.width - fabSize - safeMargin)
+        : null;
+    final safeBottomPosition = _shouldUseBottom()
+        ? bottomPosition.clamp(
+            safeMargin, screenSize.height - fabSize - safeMargin)
+        : null;
+    final safeRightPosition = _shouldUseRight()
+        ? rightPosition.clamp(
+            safeMargin, screenSize.width - fabSize - safeMargin)
+        : null;
+
     return Positioned(
-      top: _shouldUseTop() ? topPosition : null,
-      left: _shouldUseLeft() ? leftPosition : null,
-      bottom: _shouldUseBottom() ? bottomPosition : null,
-      right: _shouldUseRight() ? rightPosition : null,
+      top: safeTopPosition,
+      left: safeLeftPosition,
+      bottom: safeBottomPosition,
+      right: safeRightPosition,
       child: _buildMainFabForOverlay(),
     );
   }
@@ -600,11 +752,15 @@ class _EnhancedSpeedDialState extends State<EnhancedSpeedDial>
   String _getOptionHeroTag(SpeedDialOption option, int index) {
     if (option.heroTag != null) return option.heroTag!;
 
-    // Auto-generate based on label and index
+    // Auto-generate based on widget instance, corner, direction, label and index to ensure uniqueness
     final baseTag = widget.heroTag ?? "enhanced_speed_dial";
     final cleanLabel =
         option.label.replaceAll(RegExp(r'[^a-zA-Z0-9]'), '').toLowerCase();
-    return "${baseTag}_option_${cleanLabel}_$index";
+    final cornerKey = widget.corner.toString().split('.').last;
+    final directionKey = widget.direction.toString().split('.').last;
+    final instanceId =
+        hashCode.toString().substring(0, 6); // Use object hash for uniqueness
+    return "${baseTag}_${cornerKey}_${directionKey}_${cleanLabel}_${index}_$instanceId";
   }
 
   // Helper method to get position from corner and offset
@@ -612,54 +768,51 @@ class _EnhancedSpeedDialState extends State<EnhancedSpeedDial>
     final mediaQuery = MediaQuery.of(context);
     final screenSize = mediaQuery.size;
     final padding = mediaQuery.padding;
+    final fabSize = widget.fabSize ?? 56.0;
+
+    // Ensure minimum edge distance and screen boundary validation
+    final minOffset =
+        16.0; // Increased minimum edge distance for better visibility
+    final maxOffset =
+        screenSize.width / 6; // Maximum offset to prevent too far from edge
+    final effectiveOffset = widget.offsetFromEdge.clamp(minOffset, maxOffset);
+
+    // Calculate safe screen bounds with more conservative margins
+    final safeLeft = effectiveOffset;
+    final safeTop =
+        widget.applySafeArea ? effectiveOffset + padding.top : effectiveOffset;
+    final safeRight = (screenSize.width - effectiveOffset - fabSize)
+        .clamp(safeLeft + fabSize, screenSize.width - minOffset);
+    final safeBottom = widget.applySafeArea
+        ? (screenSize.height - effectiveOffset - fabSize - padding.bottom)
+            .clamp(safeTop + fabSize, screenSize.height - minOffset)
+        : (screenSize.height - effectiveOffset - fabSize)
+            .clamp(safeTop + fabSize, screenSize.height - minOffset);
+
+    // Validate screen is large enough for proper positioning
+    if (safeRight < safeLeft + fabSize || safeBottom < safeTop + fabSize) {
+      // Screen too small - fallback to center with better bounds checking
+      final centerX = (screenSize.width - fabSize) / 2;
+      final centerY = (screenSize.height - fabSize) / 2;
+      return Offset(
+        centerX.clamp(minOffset, screenSize.width - fabSize - minOffset),
+        centerY.clamp(minOffset + padding.top,
+            screenSize.height - fabSize - minOffset - padding.bottom),
+      );
+    }
 
     switch (widget.corner) {
       case SpeedDialCorner.topLeft:
-        return widget.applySafeArea
-            ? Offset(widget.offsetFromEdge, widget.offsetFromEdge + padding.top)
-            : Offset(widget.offsetFromEdge, widget.offsetFromEdge);
+        return Offset(safeLeft, safeTop);
+
       case SpeedDialCorner.topRight:
-        return widget.applySafeArea
-            ? Offset(
-                screenSize.width -
-                    widget.offsetFromEdge -
-                    (widget.fabSize ?? 56.0),
-                widget.offsetFromEdge + padding.top)
-            : Offset(
-                screenSize.width -
-                    widget.offsetFromEdge -
-                    (widget.fabSize ?? 56.0),
-                widget.offsetFromEdge);
+        return Offset(safeRight, safeTop);
+
       case SpeedDialCorner.bottomLeft:
-        return widget.applySafeArea
-            ? Offset(
-                widget.offsetFromEdge,
-                screenSize.height -
-                    widget.offsetFromEdge -
-                    (widget.fabSize ?? 56.0) -
-                    padding.bottom)
-            : Offset(
-                widget.offsetFromEdge,
-                screenSize.height -
-                    widget.offsetFromEdge -
-                    (widget.fabSize ?? 56.0));
+        return Offset(safeLeft, safeBottom);
+
       case SpeedDialCorner.bottomRight:
-        return widget.applySafeArea
-            ? Offset(
-                screenSize.width -
-                    widget.offsetFromEdge -
-                    (widget.fabSize ?? 56.0),
-                screenSize.height -
-                    widget.offsetFromEdge -
-                    (widget.fabSize ?? 56.0) -
-                    padding.bottom)
-            : Offset(
-                screenSize.width -
-                    widget.offsetFromEdge -
-                    (widget.fabSize ?? 56.0),
-                screenSize.height -
-                    widget.offsetFromEdge -
-                    (widget.fabSize ?? 56.0));
+        return Offset(safeRight, safeBottom);
     }
   }
 
@@ -846,146 +999,160 @@ class _EnhancedSpeedDialState extends State<EnhancedSpeedDial>
 
     switch (effectiveDirection) {
       case SpeedDialDirection.up:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: _getCrossAxisAlignment(),
-          children: [
-            // Speed dial options
-            ...widget.options.reversed.toList().asMap().entries.map((entry) {
-              final index =
-                  widget.options.length - 1 - entry.key; // Reverse index
-              final option = entry.value;
-              return AnimatedBuilder(
-                animation: _scaleAnimation,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _scaleAnimation.value,
-                    child: _buildSpeedDialOption(option, index),
-                  );
-                },
-              );
-            }),
-            // Spacing between options and main button
-            if (widget.options.isNotEmpty)
-              SizedBox(height: widget.mainToOptionSpacing),
-          ],
+        return SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: _getCrossAxisAlignment(),
+            children: [
+              // Speed dial options
+              ...widget.options.reversed.toList().asMap().entries.map((entry) {
+                final index =
+                    widget.options.length - 1 - entry.key; // Reverse index
+                final option = entry.value;
+                return AnimatedBuilder(
+                  animation: _scaleAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _scaleAnimation.value,
+                      child: _buildSpeedDialOption(option, index),
+                    );
+                  },
+                );
+              }),
+              // Spacing between options and main button
+              if (widget.options.isNotEmpty)
+                SizedBox(height: widget.mainToOptionSpacing),
+            ],
+          ),
         );
       case SpeedDialDirection.down:
-        return Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: _getCrossAxisAlignment(),
-          spacing: widget.mainToOptionSpacing,
-          children: [
-            // Speed dial options
-            ...widget.options.asMap().entries.map((entry) {
-              final index = entry.key;
-              final option = entry.value;
-              return AnimatedBuilder(
-                animation: _scaleAnimation,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _scaleAnimation.value,
-                    child: _buildSpeedDialOption(option, index),
-                  );
-                },
-              );
-            }),
-          ],
+        return SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: _getCrossAxisAlignment(),
+            spacing: widget.mainToOptionSpacing,
+            children: [
+              // Speed dial options
+              ...widget.options.asMap().entries.map((entry) {
+                final index = entry.key;
+                final option = entry.value;
+                return AnimatedBuilder(
+                  animation: _scaleAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _scaleAnimation.value,
+                      child: _buildSpeedDialOption(option, index),
+                    );
+                  },
+                );
+              }),
+            ],
+          ),
         );
       case SpeedDialDirection.left:
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          spacing: widget.mainToOptionSpacing,
-          children: [
-            // Speed dial options
-            ...widget.options.reversed.toList().asMap().entries.map((entry) {
-              final index =
-                  widget.options.length - 1 - entry.key; // Reverse index
-              final option = entry.value;
-              return AnimatedBuilder(
-                animation: _scaleAnimation,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _scaleAnimation.value,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment:
-                          _getHorizontalLabelAlignment(effectiveDirection),
-                      children: _shouldUseBottom()
-                          ? [
-                              // For bottom corners, put label above FAB to prevent cutoff
-                              if (option.showLabel ?? widget.showLabels) ...[
-                                option.customLabel ?? _buildOptionLabel(option),
-                                SizedBox(
-                                    height: option.labelSpacing ??
-                                        widget.labelSpacing),
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            spacing: widget.mainToOptionSpacing,
+            children: [
+              // Speed dial options
+              ...widget.options.reversed.toList().asMap().entries.map((entry) {
+                final index =
+                    widget.options.length - 1 - entry.key; // Reverse index
+                final option = entry.value;
+                return AnimatedBuilder(
+                  animation: _scaleAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _scaleAnimation.value,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment:
+                            _getHorizontalLabelAlignment(effectiveDirection),
+                        children: _shouldUseBottom()
+                            ? [
+                                // For bottom corners, put label above FAB to prevent cutoff
+                                if (option.showLabel ?? widget.showLabels) ...[
+                                  option.customLabel ??
+                                      _buildOptionLabel(option),
+                                  SizedBox(
+                                      height: option.labelSpacing ??
+                                          widget.labelSpacing),
+                                ],
+                                _buildOptionFab(option, index),
+                              ]
+                            : [
+                                // For top corners, keep label below FAB
+                                _buildOptionFab(option, index),
+                                if (option.showLabel ?? widget.showLabels) ...[
+                                  SizedBox(
+                                      height: option.labelSpacing ??
+                                          widget.labelSpacing),
+                                  option.customLabel ??
+                                      _buildOptionLabel(option),
+                                ],
                               ],
-                              _buildOptionFab(option, index),
-                            ]
-                          : [
-                              // For top corners, keep label below FAB
-                              _buildOptionFab(option, index),
-                              if (option.showLabel ?? widget.showLabels) ...[
-                                SizedBox(
-                                    height: option.labelSpacing ??
-                                        widget.labelSpacing),
-                                option.customLabel ?? _buildOptionLabel(option),
-                              ],
-                            ],
-                    ),
-                  );
-                },
-              );
-            }),
-          ],
+                      ),
+                    );
+                  },
+                );
+              }),
+            ],
+          ),
         );
       case SpeedDialDirection.right:
-        return Row(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.center,
-          spacing: widget.mainToOptionSpacing,
-          children: [
-            // Speed dial options
-            ...widget.options.asMap().entries.map((entry) {
-              final index = entry.key;
-              final option = entry.value;
-              return AnimatedBuilder(
-                animation: _scaleAnimation,
-                builder: (context, child) {
-                  return Transform.scale(
-                    scale: _scaleAnimation.value,
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment:
-                          _getHorizontalLabelAlignment(effectiveDirection),
-                      children: _shouldUseBottom()
-                          ? [
-                              // For bottom corners, put label above FAB to prevent cutoff
-                              if (option.showLabel ?? widget.showLabels) ...[
-                                option.customLabel ?? _buildOptionLabel(option),
-                                SizedBox(
-                                    height: option.labelSpacing ??
-                                        widget.labelSpacing),
+        return SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            spacing: widget.mainToOptionSpacing,
+            children: [
+              // Speed dial options
+              ...widget.options.asMap().entries.map((entry) {
+                final index = entry.key;
+                final option = entry.value;
+                return AnimatedBuilder(
+                  animation: _scaleAnimation,
+                  builder: (context, child) {
+                    return Transform.scale(
+                      scale: _scaleAnimation.value,
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment:
+                            _getHorizontalLabelAlignment(effectiveDirection),
+                        children: _shouldUseBottom()
+                            ? [
+                                // For bottom corners, put label above FAB to prevent cutoff
+                                if (option.showLabel ?? widget.showLabels) ...[
+                                  option.customLabel ??
+                                      _buildOptionLabel(option),
+                                  SizedBox(
+                                      height: option.labelSpacing ??
+                                          widget.labelSpacing),
+                                ],
+                                _buildOptionFab(option, index),
+                              ]
+                            : [
+                                // For top corners, keep label below FAB
+                                _buildOptionFab(option, index),
+                                if (option.showLabel ?? widget.showLabels) ...[
+                                  SizedBox(
+                                      height: option.labelSpacing ??
+                                          widget.labelSpacing),
+                                  option.customLabel ??
+                                      _buildOptionLabel(option),
+                                ],
                               ],
-                              _buildOptionFab(option, index),
-                            ]
-                          : [
-                              // For top corners, keep label below FAB
-                              _buildOptionFab(option, index),
-                              if (option.showLabel ?? widget.showLabels) ...[
-                                SizedBox(
-                                    height: option.labelSpacing ??
-                                        widget.labelSpacing),
-                                option.customLabel ?? _buildOptionLabel(option),
-                              ],
-                            ],
-                    ),
-                  );
-                },
-              );
-            }),
-          ],
+                      ),
+                    );
+                  },
+                );
+              }),
+            ],
+          ),
         );
     }
   }
@@ -1008,7 +1175,10 @@ class _EnhancedSpeedDialState extends State<EnhancedSpeedDial>
               width: widget.fabSize ?? 56.0,
               height: widget.fabSize ?? 56.0,
               child: FloatingActionButton(
-                heroTag: widget.heroTag ?? "enhanced_speed_dial_main",
+                key: ValueKey(
+                    "enhanced_speed_dial_main_fab_${widget.corner.toString().split('.').last}"),
+                heroTag: widget.heroTag ??
+                    "enhanced_speed_dial_main_${widget.corner.toString().split('.').last}_${hashCode.toString().substring(0, 6)}",
                 onPressed: _toggleSpeedDial,
                 backgroundColor: widget.backgroundColor ??
                     Theme.of(context).colorScheme.primary,
@@ -1051,8 +1221,10 @@ class _EnhancedSpeedDialState extends State<EnhancedSpeedDial>
               width: widget.fabSize ?? 56.0,
               height: widget.fabSize ?? 56.0,
               child: FloatingActionButton(
+                key: ValueKey(
+                    "enhanced_speed_dial_main_fab_overlay_${widget.corner.toString().split('.').last}"),
                 heroTag:
-                    "${widget.heroTag ?? "enhanced_speed_dial_main"}_overlay",
+                    "${widget.heroTag ?? "enhanced_speed_dial_main_${widget.corner.toString().split('.').last}"}_overlay_${hashCode.toString().substring(0, 6)}",
                 onPressed: _toggleSpeedDial,
                 backgroundColor: widget.backgroundColor ??
                     Theme.of(context).colorScheme.primary,
@@ -1162,6 +1334,8 @@ class _EnhancedSpeedDialState extends State<EnhancedSpeedDial>
         width: fabSize,
         height: fabSize,
         child: FloatingActionButton(
+          key: ValueKey(
+              "speed_dial_option_${option.label.replaceAll(' ', '_').toLowerCase()}"),
           mini: fabSize < 56.0,
           heroTag: optionHeroTag,
           onPressed: option.enabled
