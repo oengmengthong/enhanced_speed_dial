@@ -7,7 +7,7 @@ issue_tracker: https://github.com/oengmengthong/enhanced_speed_dial/issues
 documentation: https://github.com/oengmengthong/enhanced_speed_dial#readme
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
+  sdk: '>=3.8.0 <4.0.0'
   flutter: ">=3.0.0"
 
 dependencies:
