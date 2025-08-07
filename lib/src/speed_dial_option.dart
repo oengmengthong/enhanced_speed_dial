@@ -8,6 +8,14 @@ enum SpeedDialDirection {
   right,
 }
 
+/// Position corner for the speed dial location
+enum SpeedDialCorner {
+  topLeft,
+  topRight,
+  bottomLeft,
+  bottomRight,
+}
+
 /// Configuration class for a speed dial option
 class SpeedDialOption {
   /// The label text to display next to the button

@@ -1,17 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:enhanced_speed_dial/enhanced_speed_dial.dart';
 import 'package:enhanced_speed_dial_example/main.dart' as app;
 
 void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   group('Enhanced Speed Dial Positioning Tests', () {
-    testWidgets('FAB position should remain consistent when opening/closing',
+    testWidgets(
+        'Simple FAB position should remain consistent when opening/closing',
         (WidgetTester tester) async {
       // Start the app
       app.main();
       await tester.pumpAndSettle();
+
+      // Should start in simple mode
+      expect(find.text('Simple Configuration'), findsOneWidget);
 
       // Find the main FAB
       final fabFinder = find.byType(FloatingActionButton).first;
@@ -122,6 +127,126 @@ void main() {
               'Initial: $initialPosition, Final: $closedPosition');
     });
 
+    testWidgets('Test advanced mode with different corner positions',
+        (WidgetTester tester) async {
+      // Start the app
+      app.main();
+      await tester.pumpAndSettle();
+
+      // Switch to advanced mode
+      await tester.tap(find.text('Advanced'));
+      await tester.pumpAndSettle();
+
+      // Should now be in advanced mode
+      expect(find.text('Advanced Configuration'), findsOneWidget);
+
+      // Test different corner positions
+      final corners = [
+        SpeedDialCorner.bottomRight,
+        SpeedDialCorner.bottomLeft,
+        SpeedDialCorner.topRight,
+        SpeedDialCorner.topLeft,
+      ];
+
+      for (final corner in corners) {
+        print('Testing corner: ${corner.name}');
+
+        // Find and tap the corner chip
+        final cornerChip =
+            find.widgetWithText(ChoiceChip, _getCornerName(corner));
+        if (tester.any(cornerChip)) {
+          await tester.tap(cornerChip);
+          await tester.pumpAndSettle();
+
+          // Wait for animation to complete
+          await tester.binding.delayed(const Duration(milliseconds: 500));
+
+          // Find the main FAB in its new position
+          final fabFinder = find.byType(FloatingActionButton).first;
+          expect(fabFinder, findsOneWidget);
+
+          // Get the FAB position
+          final RenderBox fabRenderBox =
+              tester.renderObject(fabFinder) as RenderBox;
+          final Offset fabPosition = fabRenderBox.localToGlobal(Offset.zero);
+
+          print('FAB position for ${corner.name}: $fabPosition');
+
+          // Tap to open speed dial
+          await tester.tap(fabFinder);
+          await tester.pumpAndSettle();
+
+          // Wait for options to appear
+          await tester.binding.delayed(const Duration(milliseconds: 500));
+
+          // Verify options are visible
+          expect(find.text('Create Note'), findsOneWidget);
+          expect(find.text('Add Photo'), findsOneWidget);
+
+          // Close speed dial
+          await tester.tap(find.byType(FloatingActionButton).first);
+          await tester.pumpAndSettle();
+
+          print('✅ Corner ${corner.name} test passed');
+        }
+      }
+    });
+
+    testWidgets('Test expansion directions in advanced mode',
+        (WidgetTester tester) async {
+      // Start the app
+      app.main();
+      await tester.pumpAndSettle();
+
+      // Switch to advanced mode
+      await tester.tap(find.text('Advanced'));
+      await tester.pumpAndSettle();
+
+      // Test different directions
+      final directions = [
+        SpeedDialDirection.up,
+        SpeedDialDirection.down,
+        SpeedDialDirection.left,
+        SpeedDialDirection.right,
+      ];
+
+      for (final direction in directions) {
+        print('Testing direction: ${direction.name}');
+
+        // Find and tap the direction chip
+        final directionChip =
+            find.widgetWithText(ChoiceChip, _getDirectionName(direction));
+        if (tester.any(directionChip)) {
+          await tester.tap(directionChip);
+          await tester.pumpAndSettle();
+
+          // Wait for changes to take effect
+          await tester.binding.delayed(const Duration(milliseconds: 300));
+
+          // Find the main FAB
+          final fabFinder = find.byType(FloatingActionButton).first;
+          expect(fabFinder, findsOneWidget);
+
+          // Tap to open speed dial
+          await tester.tap(fabFinder);
+          await tester.pumpAndSettle();
+
+          // Wait for options to appear
+          await tester.binding.delayed(const Duration(milliseconds: 500));
+
+          // Verify options are visible
+          expect(find.text('Create Note'), findsOneWidget);
+          expect(find.text('Add Photo'), findsOneWidget);
+
+          // Close speed dial
+          await tester.tap(find.byType(FloatingActionButton).first);
+          await tester.pumpAndSettle();
+
+          print('✅ Direction ${direction.name} test passed');
+        }
+      }
+    });
+
     testWidgets('Test FAB position in different screen orientations',
         (WidgetTester tester) async {
       // Start the app
@@ -129,7 +254,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Test in portrait
-      await tester.binding.setSurfaceSize(Size(400, 800));
+      await tester.binding.setSurfaceSize(const Size(400, 800));
       await tester.pumpAndSettle();
 
       final fabFinder = find.byType(FloatingActionButton).first;
@@ -162,7 +287,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Test in landscape
-      await tester.binding.setSurfaceSize(Size(800, 400));
+      await tester.binding.setSurfaceSize(const Size(800, 400));
       await tester.pumpAndSettle();
 
       final landscapeRenderBox = tester.renderObject(fabFinder) as RenderBox;
@@ -195,4 +320,31 @@ void main() {
           reason: 'Landscape positioning should be consistent');
     });
   });
+}
+
+// Helper functions to match the main app
+String _getCornerName(SpeedDialCorner corner) {
+  switch (corner) {
+    case SpeedDialCorner.topLeft:
+      return 'Top Left';
+    case SpeedDialCorner.topRight:
+      return 'Top Right';
+    case SpeedDialCorner.bottomLeft:
+      return 'Bottom Left';
+    case SpeedDialCorner.bottomRight:
+      return 'Bottom Right';
+  }
+}
+
+String _getDirectionName(SpeedDialDirection direction) {
+  switch (direction) {
+    case SpeedDialDirection.up:
+      return 'Up';
+    case SpeedDialDirection.down:
+      return 'Down';
+    case SpeedDialDirection.left:
+      return 'Left';
+    case SpeedDialDirection.right:
+      return 'Right';
+  }
 }

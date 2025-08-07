@@ -92,6 +92,126 @@ void main() {
     expect(find.text('Down Option'), findsOneWidget);
   });
 
+  testWidgets('EnhancedSpeedDial supports all corner positions',
+      (WidgetTester tester) async {
+    // Test each corner position
+    for (final corner in SpeedDialCorner.values) {
+      final testApp = MaterialApp(
+        home: Scaffold(
+          body: EnhancedSpeedDial(
+            mainIcon: Icons.add,
+            corner: corner,
+            applySafeArea: true,
+            heroTag: 'test_${corner.name}', // Unique hero tag
+            options: [
+              SpeedDialOption(
+                label: '${corner.name.toUpperCase()} Option',
+                icon: Icons.star,
+                color: Colors.blue,
+                heroTag: '${corner.name}_option_tag',
+                onTap: () {},
+              ),
+            ],
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(testApp);
+      await tester.pumpAndSettle();
+
+      // Find the main FAB by icon since it's unique in this test
+      final mainFabFinder = find.byIcon(Icons.add);
+      expect(mainFabFinder, findsOneWidget);
+
+      // Tap to open
+      await tester.tap(mainFabFinder);
+      await tester.pumpAndSettle();
+
+      // Verify option is visible
+      expect(find.text('${corner.name.toUpperCase()} Option'), findsOneWidget);
+
+      // Tap close icon to close (speed dial shows close icon when open)
+      final closeFabFinder = find.byIcon(Icons.close);
+      await tester.tap(closeFabFinder);
+      await tester.pumpAndSettle();
+    }
+  });
+
+  testWidgets('EnhancedSpeedDial supports all expansion directions',
+      (WidgetTester tester) async {
+    // Test each direction
+    for (final direction in SpeedDialDirection.values) {
+      final testApp = MaterialApp(
+        home: Scaffold(
+          body: EnhancedSpeedDial(
+            mainIcon: Icons.add,
+            direction: direction,
+            applySafeArea: true,
+            heroTag: 'test_${direction.name}', // Unique hero tag
+            options: [
+              SpeedDialOption(
+                label: '${direction.name.toUpperCase()} Option',
+                icon: Icons.arrow_forward,
+                color: Colors.red,
+                heroTag: '${direction.name}_option_tag',
+                onTap: () {},
+              ),
+            ],
+          ),
+        ),
+      );
+
+      await tester.pumpWidget(testApp);
+      await tester.pumpAndSettle();
+
+      // Find the main FAB by icon since it's unique in this test
+      final mainFabFinder = find.byIcon(Icons.add);
+      expect(mainFabFinder, findsOneWidget);
+
+      // Tap to open
+      await tester.tap(mainFabFinder);
+      await tester.pumpAndSettle();
+
+      // Verify option is visible
+      expect(
+          find.text('${direction.name.toUpperCase()} Option'), findsOneWidget);
+
+      // Tap close icon to close (speed dial shows close icon when open)
+      final closeFabFinder = find.byIcon(Icons.close);
+      await tester.tap(closeFabFinder);
+      await tester.pumpAndSettle();
+    }
+  });
+
+  testWidgets('EnhancedSpeedDial.simple constructor works',
+      (WidgetTester tester) async {
+    final testApp = MaterialApp(
+      home: Scaffold(
+        floatingActionButton: EnhancedSpeedDial.simple(
+          mainIcon: Icons.menu,
+          options: [
+            SpeedDialOption.simple(
+              label: 'Simple Option',
+              icon: Icons.star,
+              onTap: () {},
+            ),
+          ],
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(testApp);
+    await tester.pumpAndSettle();
+
+    // Tap to open
+    await tester.tap(find.byType(FloatingActionButton));
+    await tester.pumpAndSettle();
+
+    // Verify simple option is visible
+    expect(find.text('Simple Option'), findsOneWidget);
+    expect(find.byIcon(Icons.star), findsOneWidget);
+  });
+
   testWidgets('EnhancedSpeedDial supports custom animations',
       (WidgetTester tester) async {
     final testApp = MaterialApp(

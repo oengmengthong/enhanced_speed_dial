@@ -33,6 +33,8 @@ class ExampleScreen extends StatefulWidget {
 class _ExampleScreenState extends State<ExampleScreen> {
   String _lastAction = 'No action yet';
   bool _useSimpleVersion = true;
+  SpeedDialCorner _selectedCorner = SpeedDialCorner.bottomRight;
+  SpeedDialDirection _selectedDirection = SpeedDialDirection.up;
 
   void _showSnackBar(String message) {
     ScaffoldMessenger.of(context).showSnackBar(
@@ -41,6 +43,32 @@ class _ExampleScreenState extends State<ExampleScreen> {
     setState(() {
       _lastAction = message;
     });
+  }
+
+  String _getCornerName(SpeedDialCorner corner) {
+    switch (corner) {
+      case SpeedDialCorner.topLeft:
+        return 'Top Left';
+      case SpeedDialCorner.topRight:
+        return 'Top Right';
+      case SpeedDialCorner.bottomLeft:
+        return 'Bottom Left';
+      case SpeedDialCorner.bottomRight:
+        return 'Bottom Right';
+    }
+  }
+
+  String _getDirectionName(SpeedDialDirection direction) {
+    switch (direction) {
+      case SpeedDialDirection.up:
+        return 'Up';
+      case SpeedDialDirection.down:
+        return 'Down';
+      case SpeedDialDirection.left:
+        return 'Left';
+      case SpeedDialDirection.right:
+        return 'Right';
+    }
   }
 
   @override
@@ -61,67 +89,120 @@ class _ExampleScreenState extends State<ExampleScreen> {
           ),
         ],
       ),
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Text(
-              _useSimpleVersion
-                  ? 'Simple Configuration'
-                  : 'Advanced Configuration',
-              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              _useSimpleVersion
-                  ? 'Minimal setup with auto-generated colors and hero tags'
-                  : 'Full customization with explicit styling',
-              style: const TextStyle(fontSize: 16),
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: 20),
-            Container(
-              padding: const EdgeInsets.all(16),
-              margin: const EdgeInsets.symmetric(horizontal: 20),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Column(
-                children: [
-                  const Text(
-                    'Features Demonstrated:',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+      body: Stack(
+        children: [
+          Center(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  _useSimpleVersion
+                      ? 'Simple Configuration'
+                      : 'Advanced Configuration',
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  _useSimpleVersion
+                      ? 'Minimal setup with auto-generated colors and hero tags'
+                      : 'Full customization with explicit styling',
+                  style: const TextStyle(fontSize: 16),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 20),
+
+                // Corner selector
+                if (!_useSimpleVersion) ...[
+                  const Text('Position Corner:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: SpeedDialCorner.values.map((corner) {
+                      return ChoiceChip(
+                        label: Text(_getCornerName(corner)),
+                        selected: _selectedCorner == corner,
+                        onSelected: (selected) {
+                          if (selected) {
+                            setState(() {
+                              _selectedCorner = corner;
+                            });
+                          }
+                        },
+                      );
+                    }).toList(),
                   ),
-                  const SizedBox(height: 10),
-                  if (_useSimpleVersion) ...[
-                    const Text('• SpeedDialOption.simple() constructor'),
-                    const Text('• Auto-generated colors'),
-                    const Text('• Auto-generated hero tags'),
-                    const Text('• Minimal configuration'),
-                  ] else ...[
-                    const Text('• Full customization options'),
-                    const Text('• Custom colors and styling'),
-                    const Text('• Individual option settings'),
-                    const Text('• Advanced animations'),
-                  ],
+                  const SizedBox(height: 16),
+                  const Text('Expand Direction:',
+                      style: TextStyle(fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    children: SpeedDialDirection.values.map((direction) {
+                      return ChoiceChip(
+                        label: Text(_getDirectionName(direction)),
+                        selected: _selectedDirection == direction,
+                        onSelected: (selected) {
+                          if (selected) {
+                            setState(() {
+                              _selectedDirection = direction;
+                            });
+                          }
+                        },
+                      );
+                    }).toList(),
+                  ),
+                  const SizedBox(height: 20),
                 ],
-              ),
-            ),
-            const SizedBox(height: 30),
-            Text(
-              'Last action: $_lastAction',
-              style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                    fontWeight: FontWeight.w500,
+
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  margin: const EdgeInsets.symmetric(horizontal: 20),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[100],
+                    borderRadius: BorderRadius.circular(8),
                   ),
+                  child: Column(
+                    children: [
+                      const Text(
+                        'Features Demonstrated:',
+                        style: TextStyle(
+                            fontSize: 18, fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 10),
+                      if (_useSimpleVersion) ...[
+                        const Text('• SpeedDialOption.simple() constructor'),
+                        const Text('• Auto-generated colors'),
+                        const Text('• Auto-generated hero tags'),
+                        const Text('• Minimal configuration'),
+                      ] else ...[
+                        const Text('• Full customization options'),
+                        const Text('• Custom colors and styling'),
+                        const Text('• Individual option settings'),
+                        const Text('• Advanced animations'),
+                        const Text('• All corner positioning'),
+                        const Text('• All direction expansions'),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 30),
+                Text(
+                  'Last action: $_lastAction',
+                  style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                        fontWeight: FontWeight.w500,
+                      ),
+                ),
+              ],
             ),
-          ],
-        ),
+          ),
+          // Place the speed dial as a positioned widget instead of floatingActionButton
+          if (!_useSimpleVersion) _buildAdvancedSpeedDial(),
+        ],
       ),
-      floatingActionButton: _useSimpleVersion
-          ? _buildSimpleSpeedDial()
-          : _buildAdvancedSpeedDial(),
+      floatingActionButton: _useSimpleVersion ? _buildSimpleSpeedDial() : null,
     );
   }
 
@@ -169,7 +250,8 @@ class _ExampleScreenState extends State<ExampleScreen> {
       tooltip: "Open speed dial",
       animationDuration: const Duration(milliseconds: 300),
       animationCurve: Curves.easeInOutBack,
-      direction: SpeedDialDirection.up,
+      corner: _selectedCorner, // Use selected corner
+      direction: _selectedDirection, // Use selected direction
       optionSpacing: 12.0,
       mainToOptionSpacing: 24.0, // Better spacing from main FAB to first option
       labelSpacing: 16.0,
@@ -181,7 +263,7 @@ class _ExampleScreenState extends State<ExampleScreen> {
       closeOnOptionTap: true,
       closeOnBlurTap: true,
       showLabels: true,
-      applySafeArea: false, // Required when used as floatingActionButton
+      applySafeArea: true, // Enable free positioning for all corners
       labelStyle: const TextStyle(
         fontWeight: FontWeight.w500,
         fontSize: 14,
