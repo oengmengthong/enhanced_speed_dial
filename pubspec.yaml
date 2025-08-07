@@ -1,6 +1,10 @@
 name: enhanced_speed_dial
 description: A highly customizable Flutter speed dial with advanced blur effects, flexible positioning, multiple directions, comprehensive styling options, and smooth animations.
 version: 1.0.0
+homepage: https://github.com/oengmengthong/enhanced_speed_dial
+repository: https://github.com/oengmengthong/enhanced_speed_dial
+issue_tracker: https://github.com/oengmengthong/enhanced_speed_dial/issues
+documentation: https://github.com/oengmengthong/enhanced_speed_dial#readme
 
 environment:
   sdk: '>=3.0.0 <4.0.0'
@@ -14,3 +18,19 @@ dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^3.0.0
+
+# Add screenshots and topics for better discoverability
+screenshots:
+  - description: 'Enhanced Speed Dial with blur background'
+    path: screenshots/image1.png
+  - description: 'Multiple positioning options'  
+    path: screenshots/image2.png
+  - description: 'Customizable styling and animations'
+    path: screenshots/image3.png
+
+topics:
+  - speed-dial
+  - floating-action-button
+  - blur-background
+  - material-design
+  - flutter-widget
